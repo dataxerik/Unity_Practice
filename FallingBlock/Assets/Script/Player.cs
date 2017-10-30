@@ -28,4 +28,12 @@ public class Player : MonoBehaviour {
             transform.position = new Vector2(-screenHalfWidthInWorldUnits, transform.position.y);
         }
     }
+
+    void OnTriggerEnter2D(Collider2D other)
+    {
+        if(other.tag.Equals("Falling Block"))
+        {
+            Destroy(gameObject);
+        }
+    }
 }
