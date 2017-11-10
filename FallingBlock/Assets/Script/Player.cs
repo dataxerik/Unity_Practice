@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Player : MonoBehaviour {
     public float speed = 10f;
-
+    public event System.Action OnPlayerDeath;
     float screenHalfWidthInWorldUnits;
 
 	// Use this for initialization
@@ -33,6 +33,10 @@ public class Player : MonoBehaviour {
     {
         if(other.tag.Equals("Falling Block"))
         {
+            if(OnPlayerDeath != null)
+            {
+                OnPlayerDeath();
+            }
             Destroy(gameObject);
         }
     }

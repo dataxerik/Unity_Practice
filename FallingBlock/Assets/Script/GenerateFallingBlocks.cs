@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class GenerateFallingBlocks : MonoBehaviour {
-    public float secondsBetweenSpawns = 1;
+    public Vector2 secondsBetweenSpawnsMinMax;
     public float spawnAngleMax;
     public GameObject fallingBlock;
     public Vector2 spawnSizeMinMax;
@@ -27,6 +27,7 @@ public class GenerateFallingBlocks : MonoBehaviour {
 	void Update () {
         if (Time.time > nextSpawnTime)
         {
+            float secondsBetweenSpawns = Mathf.Lerp(secondsBetweenSpawnsMinMax.y, secondsBetweenSpawnsMinMax.x, Difficulty.GetDifficultyPercent());
             nextSpawnTime = Time.time + secondsBetweenSpawns;
             float spawnSize = Random.Range(spawnSizeMinMax.x, spawnSizeMinMax.y);
             float spawnAngle = Random.Range(-spawnAngleMax, spawnAngleMax);

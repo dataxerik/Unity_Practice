@@ -4,11 +4,13 @@ using UnityEngine;
 
 public class FallingBlock : MonoBehaviour {
     float halfScreenHeightInWordUnits;
-    float speed = 10f;
+    public Vector2 speedMinMax;
+    float speed;
 
     void Start()
     {
         halfScreenHeightInWordUnits = -Camera.main.orthographicSize - transform.localScale.y;
+        speed = Mathf.Lerp(speedMinMax.x, speedMinMax.y, Difficulty.GetDifficultyPercent());
     }
 	
 	// Update is called once per frame
@@ -17,7 +19,6 @@ public class FallingBlock : MonoBehaviour {
 
         if (transform.position.y < halfScreenHeightInWordUnits)
         {
-            //print("Destroying, position y is " + transform.position.y);
             Destroy(gameObject);
         }
     }
