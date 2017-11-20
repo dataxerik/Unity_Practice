@@ -2,50 +2,68 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Guard : MonoBehaviour {
+public class Guard : MonoBehaviour
+{
+    public static event System.Action OnGuardHasSpotted;
 
-    public Transform pathHolder;
-    public float turnSpeed;
-    public float walkSpeed;
-    public float waitTimeAtWaypoint;
+    public float speed = 5;
+    public float waitTime = .3f;
+    public float turnSpeed = 90;
+    public float timeToSpotPlayer = .3f;
 
-    public Light spotLight;
+    public Light spotlight;
     public float viewDistance;
     public LayerMask viewMask;
+
     float viewAngle;
+    float playerVisibleTimer;
+
+    public Transform pathHolder;
     Transform player;
-    Color originalSpotLightColor;
+    Color originalSpotlightColour;
 
-    private void Start()
+    void Start()
     {
-        player = GameObject.FindGameObjectsWithTag("Player")[0].transform;
-        viewAngle = spotLight.spotAngle;
-        originalSpotLightColor = spotLight.color;
+        player = GameObject.FindGameObjectWithTag("Player").transform;
+        viewAngle = spotlight.spotAngle;
+        originalSpotlightColour = spotlight.color;
 
-      
         Vector3[] waypoints = new Vector3[pathHolder.childCount];
-        for(int i = 0; i < pathHolder.childCount; i++)
+        for (int i = 0; i < waypoints.Length; i++)
         {
             waypoints[i] = pathHolder.GetChild(i).position;
             waypoints[i] = new Vector3(waypoints[i].x, transform.position.y, waypoints[i].z);
         }
-        StartCoroutine(FollowPath2(waypoints));
+
+        StartCoroutine(FollowPath(waypoints));
+
     }
 
-    private void Update()
+    void Update()
     {
-        if(CanSeePlayer())
+        if (CanSeePlayer())
         {
-            spotLight.color = Color.red;
-        } else
+            playerVisibleTimer += Time.deltaTime;
+        }
+        else
         {
-            spotLight.color = originalSpotLightColor;
+            playerVisibleTimer -= Time.deltaTime;
+        }
+        playerVisibleTimer = Mathf.Clamp(playerVisibleTimer, 0, timeToSpotPlayer);
+        spotlight.color = Color.Lerp(originalSpotlightColour, Color.red, playerVisibleTimer / timeToSpotPlayer);
+
+        if(playerVisibleTimer >= timeToSpotPlayer)
+        {
+            if(OnGuardHasSpotted != null)
+            {
+                OnGuardHasSpotted();
+            }
         }
     }
 
     bool CanSeePlayer()
     {
-        if(Vector3.Distance(transform.position, player.position) < viewDistance)
+        if (Vector3.Distance(transform.position, player.position) < viewDistance)
         {
             Vector3 dirToPlayer = (player.position - transform.position).normalized;
             float angleBetweenGuardAndPlayer = Vector3.Angle(transform.forward, dirToPlayer);
@@ -60,19 +78,23 @@ public class Guard : MonoBehaviour {
         return false;
     }
 
-    IEnumerator FollowPath2(Vector3[] points)
+    IEnumerator FollowPath(Vector3[] waypoints)
     {
-        transform.position = points[0];
-        int waypointPosition = 1;
-        transform.LookAt(points[waypointPosition]);
-        while(true)
+        transform.position = waypoints[0];
+
+        int targetWaypointIndex = 1;
+        Vector3 targetWaypoint = waypoints[targetWaypointIndex];
+        transform.LookAt(targetWaypoint);
+
+        while (true)
         {
-            transform.position = Vector3.MoveTowards(transform.position, points[waypointPosition], Time.deltaTime * walkSpeed);           
-            if (transform.position == points[waypointPosition])
+            transform.position = Vector3.MoveTowards(transform.position, targetWaypoint, speed * Time.deltaTime);
+            if (transform.position == targetWaypoint)
             {
-                waypointPosition = (waypointPosition + 1) % points.Length;
-                yield return new WaitForSeconds(waitTimeAtWaypoint);
-                yield return StartCoroutine(TurnToFace(points[waypointPosition]));
+                targetWaypointIndex = (targetWaypointIndex + 1) % waypoints.Length;
+                targetWaypoint = waypoints[targetWaypointIndex];
+                yield return new WaitForSeconds(waitTime);
+                yield return StartCoroutine(TurnToFace(targetWaypoint));
             }
             yield return null;
         }
@@ -80,58 +102,32 @@ public class Guard : MonoBehaviour {
 
     IEnumerator TurnToFace(Vector3 lookTarget)
     {
-        Vector3 dirToLook = (lookTarget - transform.position).normalized;
-        float targetAngle = 90 - Mathf.Atan2(dirToLook.z, dirToLook.x) * Mathf.Rad2Deg;
+        Vector3 dirToLookTarget = (lookTarget - transform.position).normalized;
+        float targetAngle = 90 - Mathf.Atan2(dirToLookTarget.z, dirToLookTarget.x) * Mathf.Rad2Deg;
 
-        while(Mathf.Abs(Mathf.DeltaAngle(transform.eulerAngles.y, targetAngle)) > 0.05f)
+        while (Mathf.Abs(Mathf.DeltaAngle(transform.eulerAngles.y, targetAngle)) > 0.05f)
         {
-            print(Mathf.Abs(Mathf.DeltaAngle(transform.eulerAngles.y, targetAngle)));
             float angle = Mathf.MoveTowardsAngle(transform.eulerAngles.y, targetAngle, turnSpeed * Time.deltaTime);
             transform.eulerAngles = Vector3.up * angle;
             yield return null;
         }
     }
 
-    IEnumerator FollowPath(Vector3[] points)
-    {
-        transform.position = points[0];
-        int waypointStartIndex = 1;
-        while(true)
-        {
-            
-            yield return StartCoroutine(Move(points[waypointStartIndex], walkSpeed));
-            yield return new WaitForSeconds(waitTimeAtWaypoint);
-            waypointStartIndex++;
-            if (waypointStartIndex == points.Length)
-            {
-                waypointStartIndex = 0;
-            }
-
-        }
-    }
-
-    IEnumerator Move(Vector3 destination, float speed)
-    {
-        while(transform.position != destination)
-        {
-            transform.position = Vector3.MoveTowards(transform.position, destination, Time.deltaTime * speed);
-            yield return null;
-        }
-    }
-
-    private void OnDrawGizmos()
+    void OnDrawGizmos()
     {
         Vector3 startPosition = pathHolder.GetChild(0).position;
-        Vector3 preivousPosition = startPosition;
-        foreach(Transform path in pathHolder)
+        Vector3 previousPosition = startPosition;
+
+        foreach (Transform waypoint in pathHolder)
         {
-            Gizmos.DrawSphere(path.position, .3f);
-            Gizmos.DrawLine(preivousPosition, path.position);
-            preivousPosition = path.position;
+            Gizmos.DrawSphere(waypoint.position, .3f);
+            Gizmos.DrawLine(previousPosition, waypoint.position);
+            previousPosition = waypoint.position;
         }
-        Gizmos.DrawLine(preivousPosition, startPosition);
+        Gizmos.DrawLine(previousPosition, startPosition);
 
         Gizmos.color = Color.red;
         Gizmos.DrawRay(transform.position, transform.forward * viewDistance);
     }
+
 }
